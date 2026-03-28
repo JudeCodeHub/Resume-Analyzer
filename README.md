@@ -1,87 +1,191 @@
-# Welcome to React Router!
+# Resumind - AI Resume Analyzer
 
-A modern, production-ready template for building full-stack React applications using React Router.
+Resumind is a client-side React Router app that helps users upload a resume PDF, run AI-based analysis, and review detailed ATS-focused feedback.
 
-[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/remix-run/react-router-templates/tree/main/default)
+The app uses Puter services in the browser for:
+- Authentication
+- File storage (resume PDF and generated preview image)
+- Key-value persistence for analysis records
+- AI chat completion for structured resume feedback
 
-## Features
+## What This Project Does
 
-- 🚀 Server-side rendering
-- ⚡️ Hot Module Replacement (HMR)
-- 📦 Asset bundling and optimization
-- 🔄 Data loading and mutations
-- 🔒 TypeScript by default
-- 🎉 TailwindCSS for styling
-- 📖 [React Router docs](https://reactrouter.com/)
+1. User signs in through Puter auth.
+2. User uploads a PDF resume and enters company/job details.
+3. The PDF is converted to a first-page PNG preview in-browser.
+4. Both PDF and PNG are uploaded to Puter file storage.
+5. An AI prompt is generated from job title + description.
+6. AI returns structured JSON feedback (scores + actionable tips).
+7. The feedback is stored and displayed in a detailed review UI.
 
-## Getting Started
+## Tech Stack
 
-### Installation
+- React 19
+- React Router 7 (SPA mode, SSR disabled)
+- TypeScript (strict)
+- Vite 7
+- Tailwind CSS v4 + custom utilities
+- Zustand (global Puter state)
+- pdfjs-dist (PDF to image conversion)
+- react-dropzone (file upload UX)
 
-Install the dependencies:
+## Application Architecture
 
-```bash
+### Runtime Model
+
+- App runs in SPA mode (see react-router.config.ts with ssr: false).
+- Root layout injects Puter script from https://js.puter.com/v2/.
+- A Zustand store initializes Puter and exposes auth, fs, ai, kv wrappers.
+
+### Core Files
+
+- [app/lib/puter.ts](app/lib/puter.ts): Puter integration, auth lifecycle, service wrappers
+- [constants/index.ts](constants/index.ts): AI schema contract and prompt builder
+- [app/lib/pdf2img.ts](app/lib/pdf2img.ts): PDF first-page to PNG conversion
+- [types/index.d.ts](types/index.d.ts): Resume + Feedback domain types
+- [app/routes.ts](app/routes.ts): Route registration
+
+### Route Map
+
+- / -> home dashboard with previously analyzed resumes
+- /auth -> login screen (redirects to target route via next query)
+- /upload -> upload + analysis workflow
+- /resume/:id -> detailed feedback view for one resume
+- /wipe -> utility page to clear Puter files and KV data
+
+## Data Model
+
+Each analysis record is stored in Puter KV under key pattern:
+
+- resume:<uuid>
+
+Stored payload shape (simplified):
+
+- id
+- resumePath (Puter FS path to uploaded PDF)
+- imagePath (Puter FS path to generated PNG preview)
+- companyName
+- jobTitle
+- jobDescription
+- feedback (JSON object matching Feedback type)
+
+Feedback categories:
+
+- overallScore
+- ATS: score + short tips
+- toneAndStyle: score + titled tips + explanation
+- content: score + titled tips + explanation
+- structure: score + titled tips + explanation
+- skills: score + titled tips + explanation
+
+## Local Development
+
+### Prerequisites
+
+- Node.js 20+
+- npm
+- Internet access (required for Puter script and PDF worker CDN)
+
+### Install
+
 npm install
-```
 
-### Development
+### Run Dev Server
 
-Start the development server with HMR:
-
-```bash
 npm run dev
-```
 
-Your application will be available at `http://localhost:5173`.
+Default local URL:
 
-## Building for Production
+http://localhost:5173
 
-Create a production build:
+### Typecheck
 
-```bash
+npm run typecheck
+
+### Production Build
+
 npm run build
-```
 
-## Deployment
+### Start Production Server
 
-### Docker Deployment
+npm run start
 
-To build and run using Docker:
+## Docker
 
-```bash
-docker build -t my-app .
+The repository includes a multi-stage Dockerfile.
 
-# Run the container
-docker run -p 3000:3000 my-app
-```
+Build image:
 
-The containerized application can be deployed to any platform that supports Docker, including:
+docker build -t resumind .
 
-- AWS ECS
-- Google Cloud Run
-- Azure Container Apps
-- Digital Ocean App Platform
-- Fly.io
-- Railway
+Run container:
 
-### DIY Deployment
+docker run -p 3000:3000 resumind
 
-If you're familiar with deploying Node applications, the built-in app server is production-ready.
+Then open:
 
-Make sure to deploy the output of `npm run build`
+http://localhost:3000
 
-```
-├── package.json
-├── package-lock.json (or pnpm-lock.yaml, or bun.lockb)
-├── build/
-│   ├── client/    # Static assets
-│   └── server/    # Server-side code
-```
+## UI Composition
 
-## Styling
+- [app/components/FileUploader.tsx](app/components/FileUploader.tsx): Drag/drop PDF picker with size/type constraints
+- [app/components/ResumeCard.tsx](app/components/ResumeCard.tsx): Dashboard card with score ring and preview image
+- [app/components/Summary.tsx](app/components/Summary.tsx): Overall score and category snapshots
+- [app/components/ATS.tsx](app/components/ATS.tsx): ATS score interpretation panel
+- [app/components/Details.tsx](app/components/Details.tsx): Expandable sections for deep feedback
+- [app/components/ScoreGauge.tsx](app/components/ScoreGauge.tsx): Semi-circle score gauge
+- [app/components/Accordion.tsx](app/components/Accordion.tsx): Custom accordion primitives
 
-This template comes with [Tailwind CSS](https://tailwindcss.com/) already configured for a simple default starting experience. You can use whatever CSS framework you prefer.
+Styling is defined in [app/app.css](app/app.css) with Tailwind v4 theme variables and utility/component layers.
 
----
+## How Analysis Works Internally
 
-Built with ❤️ using React Router.
+1. [app/routes/upload.tsx](app/routes/upload.tsx) accepts form input and selected PDF.
+2. PDF is uploaded via Puter fs.upload.
+3. PDF first page is converted to PNG via [app/lib/pdf2img.ts](app/lib/pdf2img.ts).
+4. PNG is uploaded via Puter fs.upload.
+5. Initial record is written to KV using generated UUID.
+6. AI feedback request is sent through puter.ai.chat with:
+	- file attachment (puter_path)
+	- instruction text generated by prepareInstructions
+7. Response is parsed as JSON and stored back into the same KV record.
+8. User is redirected to /resume/:id for visualization.
+
+## Operational Notes
+
+- No .env configuration is currently required by source code.
+- Authentication and persistence depend on Puter availability at runtime.
+- PDF worker source is loaded from unpkg CDN in [app/lib/pdf2img.ts](app/lib/pdf2img.ts).
+- Build artifacts are generated in build/client (SPA output).
+
+## Known Gaps / Improvement Opportunities
+
+- Add robust error UI for failed JSON parse from AI response.
+- Add schema validation (for example Zod) before persisting feedback.
+- Add loading/error states for all async calls in dashboard and resume details.
+- Add automated tests for upload and analysis flow.
+- Add optional self-hosted backend mode for teams that do not want Puter dependency.
+
+## Project Structure
+
+- app/: routes, components, shared utilities
+- constants/: AI response contract and prompt template
+- types/: global TS interfaces for domain + Puter shapes
+- public/: static assets (icons, images, worker file)
+- build/: generated production output
+
+## Scripts
+
+- npm run dev: Start development server
+- npm run build: Build production assets
+- npm run start: Serve built app
+- npm run typecheck: Generate route types + run TypeScript checks
+
+## Validation Status
+
+Current repository state was validated with:
+
+- npm run typecheck
+- npm run build
+
+Both commands completed successfully.
