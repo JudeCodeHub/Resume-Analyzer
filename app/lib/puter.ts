@@ -244,14 +244,17 @@ export const usePuterStore = create<PuterStore>((set, get) => {
   const init = (): void => {
     const puter = getPuter();
     if (puter) {
+      (puter as unknown as { quiet?: boolean }).quiet = true;
       set({ puterReady: true });
       checkAuthStatus();
       return;
     }
 
     const interval = setInterval(() => {
-      if (getPuter()) {
+      const loadedPuter = getPuter();
+      if (loadedPuter) {
         clearInterval(interval);
+        (loadedPuter as unknown as { quiet?: boolean }).quiet = true;
         set({ puterReady: true });
         checkAuthStatus();
       }
@@ -334,24 +337,30 @@ export const usePuterStore = create<PuterStore>((set, get) => {
       return;
     }
 
-    return puter.ai.chat(
-      [
-        {
-          role: "user",
-          content: [
-            {
-              type: "file",
-              puter_path: path,
-            },
-            {
-              type: "text",
-              text: message,
-            },
-          ],
-        },
-      ],
-      { model: "claude-sonnet-4" }
-    ) as Promise<AIResponse | undefined>;
+    const payload: ChatMessage[] = [
+      {
+        role: "user",
+        content: [
+          {
+            type: "file",
+            puter_path: path,
+          },
+          {
+            type: "text",
+            text: message,
+          },
+        ],
+      },
+    ];
+
+    try {
+      return (await puter.ai.chat(payload, {
+        model: "claude-sonnet-4",
+      })) as AIResponse | undefined;
+    } catch {
+      // Fallback to provider default model when a specific model is unavailable.
+      return (await puter.ai.chat(payload)) as AIResponse | undefined;
+    }
   };
 
   const img2txt = async (image: string | File | Blob, testMode?: boolean) => {
