@@ -1,191 +1,120 @@
 # Resumind - AI Resume Analyzer
 
-Resumind is a client-side React Router app that helps users upload a resume PDF, run AI-based analysis, and review detailed ATS-focused feedback.
+A resume analyzer web app that scores your resume for ATS readiness and gives practical improvement tips.
 
-The app uses Puter services in the browser for:
-- Authentication
-- File storage (resume PDF and generated preview image)
-- Key-value persistence for analysis records
-- AI chat completion for structured resume feedback
+## Live Demo
 
-## What This Project Does
+Add your deployed Netlify URL here: https://resumindjude.netlify.app/
 
-1. User signs in through Puter auth.
-2. User uploads a PDF resume and enters company/job details.
-3. The PDF is converted to a first-page PNG preview in-browser.
-4. Both PDF and PNG are uploaded to Puter file storage.
-5. An AI prompt is generated from job title + description.
-6. AI returns structured JSON feedback (scores + actionable tips).
-7. The feedback is stored and displayed in a detailed review UI.
+- <https://your-site-name.netlify.app>
+
+Example:
+
+- <https://resumindjude.netlify.app>
+
+## Features
+
+- Upload a resume PDF
+- Convert first page to image preview
+- Analyze resume with AI
+- Get ATS score and detailed section feedback
+- Save analysis records for later review
 
 ## Tech Stack
 
 - React 19
-- React Router 7 (SPA mode, SSR disabled)
-- TypeScript (strict)
-- Vite 7
-- Tailwind CSS v4 + custom utilities
-- Zustand (global Puter state)
-- pdfjs-dist (PDF to image conversion)
-- react-dropzone (file upload UX)
+- React Router 7 (SPA mode)
+- TypeScript
+- Vite
+- Tailwind CSS v4
+- Zustand
+- Puter (auth, storage, KV, AI)
 
-## Application Architecture
+## How It Works
 
-### Runtime Model
-
-- App runs in SPA mode (see react-router.config.ts with ssr: false).
-- Root layout injects Puter script from https://js.puter.com/v2/.
-- A Zustand store initializes Puter and exposes auth, fs, ai, kv wrappers.
-
-### Core Files
-
-- [app/lib/puter.ts](app/lib/puter.ts): Puter integration, auth lifecycle, service wrappers
-- [constants/index.ts](constants/index.ts): AI schema contract and prompt builder
-- [app/lib/pdf2img.ts](app/lib/pdf2img.ts): PDF first-page to PNG conversion
-- [types/index.d.ts](types/index.d.ts): Resume + Feedback domain types
-- [app/routes.ts](app/routes.ts): Route registration
-
-### Route Map
-
-- / -> home dashboard with previously analyzed resumes
-- /auth -> login screen (redirects to target route via next query)
-- /upload -> upload + analysis workflow
-- /resume/:id -> detailed feedback view for one resume
-- /wipe -> utility page to clear Puter files and KV data
-
-## Data Model
-
-Each analysis record is stored in Puter KV under key pattern:
-
-- resume:<uuid>
-
-Stored payload shape (simplified):
-
-- id
-- resumePath (Puter FS path to uploaded PDF)
-- imagePath (Puter FS path to generated PNG preview)
-- companyName
-- jobTitle
-- jobDescription
-- feedback (JSON object matching Feedback type)
-
-Feedback categories:
-
-- overallScore
-- ATS: score + short tips
-- toneAndStyle: score + titled tips + explanation
-- content: score + titled tips + explanation
-- structure: score + titled tips + explanation
-- skills: score + titled tips + explanation
-
-## Local Development
-
-### Prerequisites
-
-- Node.js 20+
-- npm
-- Internet access (required for Puter script and PDF worker CDN)
-
-### Install
-
-npm install
-
-### Run Dev Server
-
-npm run dev
-
-Default local URL:
-
-http://localhost:5173
-
-### Typecheck
-
-npm run typecheck
-
-### Production Build
-
-npm run build
-
-### Start Production Server
-
-npm run start
-
-## Docker
-
-The repository includes a multi-stage Dockerfile.
-
-Build image:
-
-docker build -t resumind .
-
-Run container:
-
-docker run -p 3000:3000 resumind
-
-Then open:
-
-http://localhost:3000
-
-## UI Composition
-
-- [app/components/FileUploader.tsx](app/components/FileUploader.tsx): Drag/drop PDF picker with size/type constraints
-- [app/components/ResumeCard.tsx](app/components/ResumeCard.tsx): Dashboard card with score ring and preview image
-- [app/components/Summary.tsx](app/components/Summary.tsx): Overall score and category snapshots
-- [app/components/ATS.tsx](app/components/ATS.tsx): ATS score interpretation panel
-- [app/components/Details.tsx](app/components/Details.tsx): Expandable sections for deep feedback
-- [app/components/ScoreGauge.tsx](app/components/ScoreGauge.tsx): Semi-circle score gauge
-- [app/components/Accordion.tsx](app/components/Accordion.tsx): Custom accordion primitives
-
-Styling is defined in [app/app.css](app/app.css) with Tailwind v4 theme variables and utility/component layers.
-
-## How Analysis Works Internally
-
-1. [app/routes/upload.tsx](app/routes/upload.tsx) accepts form input and selected PDF.
-2. PDF is uploaded via Puter fs.upload.
-3. PDF first page is converted to PNG via [app/lib/pdf2img.ts](app/lib/pdf2img.ts).
-4. PNG is uploaded via Puter fs.upload.
-5. Initial record is written to KV using generated UUID.
-6. AI feedback request is sent through puter.ai.chat with:
-	- file attachment (puter_path)
-	- instruction text generated by prepareInstructions
-7. Response is parsed as JSON and stored back into the same KV record.
-8. User is redirected to /resume/:id for visualization.
-
-## Operational Notes
-
-- No .env configuration is currently required by source code.
-- Authentication and persistence depend on Puter availability at runtime.
-- PDF worker source is loaded from unpkg CDN in [app/lib/pdf2img.ts](app/lib/pdf2img.ts).
-- Build artifacts are generated in build/client (SPA output).
-
-## Known Gaps / Improvement Opportunities
-
-- Add robust error UI for failed JSON parse from AI response.
-- Add schema validation (for example Zod) before persisting feedback.
-- Add loading/error states for all async calls in dashboard and resume details.
-- Add automated tests for upload and analysis flow.
-- Add optional self-hosted backend mode for teams that do not want Puter dependency.
+1. Sign in with Puter.
+2. Upload resume PDF.
+3. App uploads PDF and preview image to Puter storage.
+4. App sends resume + prompt to Puter AI.
+5. App stores feedback and shows review page.
 
 ## Project Structure
 
-- app/: routes, components, shared utilities
-- constants/: AI response contract and prompt template
-- types/: global TS interfaces for domain + Puter shapes
-- public/: static assets (icons, images, worker file)
-- build/: generated production output
+- app: routes, components, client logic
+- constants: AI prompt and response format
+- public: static assets
+- types: shared TypeScript types
+- build: production output
 
-## Scripts
+## Local Setup
 
-- npm run dev: Start development server
-- npm run build: Build production assets
-- npm run start: Serve built app
-- npm run typecheck: Generate route types + run TypeScript checks
+Requirements:
 
-## Validation Status
+- Node.js 20+
+- npm
 
-Current repository state was validated with:
+Install:
 
-- npm run typecheck
-- npm run build
+```bash
+npm install
+```
 
-Both commands completed successfully.
+Run development server:
+
+```bash
+npm run dev
+```
+
+Open:
+
+- <http://localhost:5173>
+
+Type check:
+
+```bash
+npm run typecheck
+```
+
+Production build:
+
+```bash
+npm run build
+npm run start
+```
+
+## Deployment (Netlify)
+
+This project is already configured with netlify.toml.
+
+Required settings:
+
+- Build command: npm run build
+- Publish directory: build/client
+- Environment variable: NODE_VERSION=20
+
+Important:
+
+- Keep SPA redirect enabled so routes like /upload and /resume/:id do not 404 on refresh.
+
+## Docker (Optional)
+
+Build image:
+
+```bash
+docker build -t resumind .
+```
+
+Run container:
+
+```bash
+docker run -p 3000:3000 resumind
+```
+
+Open:
+
+- <http://localhost:3000>
+
+## Notes
+
+- Runtime depends on external Puter and CDN services.
+- AI analysis can take 30 to 60 seconds depending on network and provider response time.
