@@ -4,9 +4,9 @@ A resume analyzer web app that scores your resume for ATS readiness and gives pr
 
 ## Live Demo
 
-Add your deployed Netlify URL here: https://resumindjude.netlify.app/
+Add your deployed Netlify URL here: 
 
-- <https://your-site-name.netlify.app>
+- [<https://your-site-name.netlify.app>](https://resumindjude.netlify.app/)
 
 Example:
 
